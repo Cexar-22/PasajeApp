@@ -12,9 +12,8 @@ import kotlinx.coroutines.launch
 
 data class ThresholdUiState(
     val amountInput: String = "",
+    val savedThreshold: Long? = null,
     val errorMessage: String? = null,
-    val isInitialValueLoaded: Boolean = false,
-    val hasUserEditedInput: Boolean = false,
     val confirmationMessage: String? = null
 )
 
@@ -27,17 +26,8 @@ class ThresholdViewModel(
     init {
         viewModelScope.launch {
             thresholdPreferences.savedThreshold.collect { savedThreshold ->
-                _uiState.update { currentState ->
-                    if (currentState.isInitialValueLoaded) {
-                        currentState
-                    } else if (currentState.hasUserEditedInput) {
-                        currentState.copy(isInitialValueLoaded = true)
-                    } else {
-                        currentState.copy(
-                            amountInput = savedThreshold?.toString().orEmpty(),
-                            isInitialValueLoaded = true
-                        )
-                    }
+                _uiState.update {
+                    it.copy(savedThreshold = savedThreshold)
                 }
             }
         }
@@ -47,8 +37,7 @@ class ThresholdViewModel(
         _uiState.update {
             it.copy(
                 amountInput = value,
-                errorMessage = null,
-                hasUserEditedInput = true
+                errorMessage = null
             )
         }
     }
@@ -70,6 +59,7 @@ class ThresholdViewModel(
             _uiState.update {
                 it.copy(
                     amountInput = threshold.toString(),
+                    savedThreshold = threshold,
                     errorMessage = null,
                     confirmationMessage = "Umbral guardado correctamente"
                 )
