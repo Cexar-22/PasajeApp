@@ -15,6 +15,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -67,9 +68,18 @@ fun ThresholdSettingsScreen(
             uiState = uiState,
             onAmountChanged = viewModel::onAmountChanged,
             onSaveClick = viewModel::saveThreshold,
-            onRemainingBalanceChanged = viewModel::onRemainingBalanceInputChanged,
-            onRegisterPurchaseClick = viewModel::registerPurchaseResult,
+            onAvailableBalanceChanged = viewModel::onAvailableBalanceChanged,
+            onPurchaseAmountChanged = viewModel::onPurchaseAmountChanged,
+            onRegisterPurchaseClick = viewModel::registerPurchase,
             contentPadding = innerPadding
+        )
+    }
+
+    val lowBalanceAlert = uiState.lowBalanceAlert
+    if (lowBalanceAlert != null) {
+        LowBalanceAlertDialog(
+            alert = lowBalanceAlert,
+            onDismiss = viewModel::dismissLowBalanceAlert
         )
     }
 }
@@ -79,7 +89,8 @@ private fun ThresholdSettingsContent(
     uiState: ThresholdUiState,
     onAmountChanged: (String) -> Unit,
     onSaveClick: () -> Unit,
-    onRemainingBalanceChanged: (String) -> Unit,
+    onAvailableBalanceChanged: (String) -> Unit,
+    onPurchaseAmountChanged: (String) -> Unit,
     onRegisterPurchaseClick: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier
@@ -97,20 +108,6 @@ private fun ThresholdSettingsContent(
             text = "Recibirás una alerta cuando tu saldo sea inferior al monto configurado"
         )
         Spacer(modifier = Modifier.height(24.dp))
-        val remainingBalance = uiState.remainingBalance
-        val savedThreshold = uiState.savedThreshold
-        if (
-            uiState.shouldShowLowBalanceAlert &&
-            remainingBalance != null &&
-            savedThreshold != null
-        ) {
-            LowBalanceAlertCard(
-                remainingBalance = remainingBalance,
-                configuredThreshold = savedThreshold,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-        }
         SavedThresholdCard(
             savedThreshold = uiState.savedThreshold,
             modifier = Modifier.fillMaxWidth()
@@ -147,17 +144,45 @@ private fun ThresholdSettingsContent(
         }
         Spacer(modifier = Modifier.height(32.dp))
         Text(
-            text = "Resultado de la compra",
+            text = "Simulación de compra",
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
         )
         Spacer(modifier = Modifier.height(8.dp))
+        AvailableBalanceCard(
+            availableBalance = uiState.availableBalance,
+            modifier = Modifier.fillMaxWidth()
+        )
+        Spacer(modifier = Modifier.height(16.dp))
         OutlinedTextField(
-            value = uiState.remainingBalanceInput,
-            onValueChange = onRemainingBalanceChanged,
+            value = uiState.availableBalanceInput,
+            onValueChange = onAvailableBalanceChanged,
             modifier = Modifier.fillMaxWidth(),
             label = {
-                Text(text = "Saldo restante después de la compra")
+                Text(text = "Saldo disponible antes de la compra")
+            },
+            prefix = {
+                Text(text = "$")
+            },
+            isError = uiState.balanceErrorMessage != null,
+            supportingText = {
+                val errorMessage = uiState.balanceErrorMessage
+                if (errorMessage != null) {
+                    Text(text = errorMessage)
+                }
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number
+            )
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        OutlinedTextField(
+            value = uiState.purchaseAmountInput,
+            onValueChange = onPurchaseAmountChanged,
+            modifier = Modifier.fillMaxWidth(),
+            label = {
+                Text(text = "Monto de la compra")
             },
             prefix = {
                 Text(text = "$")
@@ -177,37 +202,65 @@ private fun ThresholdSettingsContent(
         Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onRegisterPurchaseClick,
-            modifier = Modifier.fillMaxWidth()
+            modifier = Modifier.fillMaxWidth(),
+            enabled = uiState.isThresholdLoaded && uiState.isPurchaseSubmissionEnabled
         ) {
-            Text(text = "Registrar compra")
+            Text(text = "Realizar compra")
         }
     }
 }
 
 @Composable
-private fun LowBalanceAlertCard(
-    remainingBalance: Long,
-    configuredThreshold: Long,
+private fun LowBalanceAlertDialog(
+    alert: LowBalanceAlert,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(text = "Saldo bajo")
+        },
+        text = {
+            Text(
+                text = "Tu saldo restante es de " +
+                    "${alert.remainingBalance.formatAsChileanPesos()} y está por debajo " +
+                    "del umbral configurado de " +
+                    "${alert.configuredThreshold.formatAsChileanPesos()}."
+            )
+        },
+        confirmButton = {
+            Button(onClick = onDismiss) {
+                Text(text = "Entendido")
+            }
+        }
+    )
+}
+
+@Composable
+private fun AvailableBalanceCard(
+    availableBalance: Long?,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier,
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.errorContainer,
-            contentColor = MaterialTheme.colorScheme.onErrorContainer
+            containerColor = MaterialTheme.colorScheme.secondaryContainer
         )
     ) {
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
             Text(
-                text = "Alerta de saldo bajo",
+                text = "Saldo disponible",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = "Saldo restante: ${remainingBalance.formatAsChileanPesos()}")
-            Text(text = "Umbral configurado: ${configuredThreshold.formatAsChileanPesos()}")
+            Text(
+                text = availableBalance?.formatAsChileanPesos() ?: "No ingresado",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold
+            )
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.example.pasajeapp.ui.threshold
 
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -13,18 +12,18 @@ import kotlinx.coroutines.launch
 
 data class ThresholdUiState(
     val amountInput: String = "",
-    val remainingBalanceInput: String = "",
-    val remainingBalance: Long? = null,
+    val availableBalanceInput: String = "",
+    val purchaseAmountInput: String = "",
+    val availableBalance: Long? = null,
     val savedThreshold: Long? = null,
+    val isThresholdLoaded: Boolean = false,
+    val isPurchaseSubmissionEnabled: Boolean = true,
     val errorMessage: String? = null,
+    val balanceErrorMessage: String? = null,
     val purchaseErrorMessage: String? = null,
-    val confirmationMessage: String? = null
-) {
-    val shouldShowLowBalanceAlert: Boolean
-        get() = remainingBalance != null &&
-            savedThreshold != null &&
-            isLowBalance(remainingBalance, savedThreshold)
-}
+    val confirmationMessage: String? = null,
+    val lowBalanceAlert: LowBalanceAlert? = null
+)
 
 class ThresholdViewModel(
     private val thresholdPreferences: ThresholdPreferences
@@ -35,9 +34,11 @@ class ThresholdViewModel(
     init {
         viewModelScope.launch {
             thresholdPreferences.savedThreshold.collect { savedThreshold ->
-                Log.d("ThresholdViewModel", "Umbral recuperado: $savedThreshold")
                 _uiState.update {
-                    it.copy(savedThreshold = savedThreshold)
+                    it.copy(
+                        savedThreshold = savedThreshold?.takeIf { value -> value > 0L },
+                        isThresholdLoaded = true
+                    )
                 }
             }
         }
@@ -52,37 +53,63 @@ class ThresholdViewModel(
         }
     }
 
-    fun onRemainingBalanceInputChanged(value: String) {
+    fun onAvailableBalanceChanged(value: String) {
         _uiState.update {
             it.copy(
-                remainingBalanceInput = value,
+                availableBalanceInput = value,
+                availableBalance = value.trim().toLongOrNull()?.takeIf { balance ->
+                    balance >= 0L
+                },
+                isPurchaseSubmissionEnabled = true,
+                balanceErrorMessage = null
+            )
+        }
+    }
+
+    fun onPurchaseAmountChanged(value: String) {
+        _uiState.update {
+            it.copy(
+                purchaseAmountInput = value,
+                isPurchaseSubmissionEnabled = true,
                 purchaseErrorMessage = null
             )
         }
     }
 
-    fun registerPurchaseResult() {
-        val currentInput = uiState.value.remainingBalanceInput.trim()
-        val remainingBalance = currentInput.toLongOrNull()
-
-        if (remainingBalance == null || remainingBalance < 0L) {
-            _uiState.update {
-                it.copy(purchaseErrorMessage = "Ingrese un saldo restante válido")
-            }
+    fun registerPurchase() {
+        val currentState = uiState.value
+        if (!currentState.isThresholdLoaded || !currentState.isPurchaseSubmissionEnabled) {
             return
         }
 
-        onPurchaseCompleted(remainingBalance)
+        when (
+            val result = processPurchase(
+                availableBalanceInput = currentState.availableBalanceInput,
+                purchaseAmountInput = currentState.purchaseAmountInput,
+                configuredThreshold = currentState.savedThreshold
+            )
+        ) {
+            is PurchaseProcessingResult.Success -> {
+                _uiState.update {
+                    it.copy(
+                        availableBalanceInput = result.remainingBalance.toString(),
+                        purchaseAmountInput = "",
+                        availableBalance = result.remainingBalance,
+                        isPurchaseSubmissionEnabled = false,
+                        balanceErrorMessage = null,
+                        purchaseErrorMessage = null,
+                        lowBalanceAlert = result.lowBalanceAlert
+                    )
+                }
+            }
+
+            is PurchaseProcessingResult.Error -> showPurchaseError(result.reason)
+        }
     }
 
-    fun onPurchaseCompleted(remainingBalance: Long) {
-        require(remainingBalance >= 0L) { "Remaining balance cannot be negative" }
+    fun dismissLowBalanceAlert() {
         _uiState.update {
-            it.copy(
-                remainingBalanceInput = remainingBalance.toString(),
-                remainingBalance = remainingBalance,
-                purchaseErrorMessage = null
-            )
+            it.copy(lowBalanceAlert = null)
         }
     }
 
@@ -104,8 +131,45 @@ class ThresholdViewModel(
                 it.copy(
                     amountInput = threshold.toString(),
                     savedThreshold = threshold,
+                    isThresholdLoaded = true,
                     errorMessage = null,
                     confirmationMessage = "Umbral guardado correctamente"
+                )
+            }
+        }
+    }
+
+    private fun showPurchaseError(error: PurchaseValidationError) {
+        _uiState.update {
+            when (error) {
+                PurchaseValidationError.AVAILABLE_BALANCE_REQUIRED -> it.copy(
+                    balanceErrorMessage = "Ingrese el saldo disponible",
+                    purchaseErrorMessage = null
+                )
+
+                PurchaseValidationError.INVALID_AVAILABLE_BALANCE -> it.copy(
+                    balanceErrorMessage = "Ingrese un saldo disponible válido",
+                    purchaseErrorMessage = null
+                )
+
+                PurchaseValidationError.PURCHASE_AMOUNT_REQUIRED -> it.copy(
+                    balanceErrorMessage = null,
+                    purchaseErrorMessage = "Ingrese el monto de la compra"
+                )
+
+                PurchaseValidationError.INVALID_PURCHASE_AMOUNT -> it.copy(
+                    balanceErrorMessage = null,
+                    purchaseErrorMessage = "Ingrese un monto de compra válido"
+                )
+
+                PurchaseValidationError.NON_POSITIVE_PURCHASE_AMOUNT -> it.copy(
+                    balanceErrorMessage = null,
+                    purchaseErrorMessage = "El monto de la compra debe ser mayor que cero"
+                )
+
+                PurchaseValidationError.INSUFFICIENT_BALANCE -> it.copy(
+                    balanceErrorMessage = null,
+                    purchaseErrorMessage = "El monto de la compra supera el saldo disponible"
                 )
             }
         }
