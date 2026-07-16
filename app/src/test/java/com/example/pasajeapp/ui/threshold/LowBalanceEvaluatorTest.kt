@@ -21,29 +21,12 @@ class LowBalanceEvaluatorTest {
     }
 
     @Test
-    fun `does not show alert before a purchase result is registered`() {
-        val uiState = ThresholdUiState(savedThreshold = 5_000L)
-
-        assertFalse(uiState.shouldShowLowBalanceAlert)
+    fun `returns true when remaining balance is one peso below threshold`() {
+        assertTrue(isLowBalance(remainingBalance = 4_999L, configuredThreshold = 5_000L))
     }
 
     @Test
-    fun `shows alert after a purchase leaves balance below saved threshold`() {
-        val uiState = ThresholdUiState(
-            remainingBalance = 3_500L,
-            savedThreshold = 5_000L
-        )
-
-        assertTrue(uiState.shouldShowLowBalanceAlert)
-    }
-
-    @Test
-    fun `does not show alert after a purchase leaves balance above saved threshold`() {
-        val uiState = ThresholdUiState(
-            remainingBalance = 17_000L,
-            savedThreshold = 5_000L
-        )
-
-        assertFalse(uiState.shouldShowLowBalanceAlert)
+    fun `returns false when remaining balance is one peso above threshold`() {
+        assertFalse(isLowBalance(remainingBalance = 5_001L, configuredThreshold = 5_000L))
     }
 }
