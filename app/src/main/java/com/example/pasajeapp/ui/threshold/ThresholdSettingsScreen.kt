@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -65,6 +67,8 @@ fun ThresholdSettingsScreen(
             uiState = uiState,
             onAmountChanged = viewModel::onAmountChanged,
             onSaveClick = viewModel::saveThreshold,
+            onRemainingBalanceChanged = viewModel::onRemainingBalanceInputChanged,
+            onRegisterPurchaseClick = viewModel::registerPurchaseResult,
             contentPadding = innerPadding
         )
     }
@@ -75,6 +79,8 @@ private fun ThresholdSettingsContent(
     uiState: ThresholdUiState,
     onAmountChanged: (String) -> Unit,
     onSaveClick: () -> Unit,
+    onRemainingBalanceChanged: (String) -> Unit,
+    onRegisterPurchaseClick: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier
 ) {
@@ -82,14 +88,29 @@ private fun ThresholdSettingsContent(
         modifier = modifier
             .fillMaxSize()
             .padding(contentPadding)
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
-        verticalArrangement = Arrangement.Center,
+        verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.Start
     ) {
         Text(
             text = "Recibirás una alerta cuando tu saldo sea inferior al monto configurado"
         )
         Spacer(modifier = Modifier.height(24.dp))
+        val remainingBalance = uiState.remainingBalance
+        val savedThreshold = uiState.savedThreshold
+        if (
+            uiState.shouldShowLowBalanceAlert &&
+            remainingBalance != null &&
+            savedThreshold != null
+        ) {
+            LowBalanceAlertCard(
+                remainingBalance = remainingBalance,
+                configuredThreshold = savedThreshold,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(modifier = Modifier.height(24.dp))
+        }
         SavedThresholdCard(
             savedThreshold = uiState.savedThreshold,
             modifier = Modifier.fillMaxWidth()
@@ -123,6 +144,70 @@ private fun ThresholdSettingsContent(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(text = "Guardar umbral")
+        }
+        Spacer(modifier = Modifier.height(32.dp))
+        Text(
+            text = "Resultado de la compra",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+        OutlinedTextField(
+            value = uiState.remainingBalanceInput,
+            onValueChange = onRemainingBalanceChanged,
+            modifier = Modifier.fillMaxWidth(),
+            label = {
+                Text(text = "Saldo restante después de la compra")
+            },
+            prefix = {
+                Text(text = "$")
+            },
+            isError = uiState.purchaseErrorMessage != null,
+            supportingText = {
+                val errorMessage = uiState.purchaseErrorMessage
+                if (errorMessage != null) {
+                    Text(text = errorMessage)
+                }
+            },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(
+                keyboardType = KeyboardType.Number
+            )
+        )
+        Spacer(modifier = Modifier.height(16.dp))
+        Button(
+            onClick = onRegisterPurchaseClick,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = "Registrar compra")
+        }
+    }
+}
+
+@Composable
+private fun LowBalanceAlertCard(
+    remainingBalance: Long,
+    configuredThreshold: Long,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.errorContainer,
+            contentColor = MaterialTheme.colorScheme.onErrorContainer
+        )
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            Text(
+                text = "Alerta de saldo bajo",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(text = "Saldo restante: ${remainingBalance.formatAsChileanPesos()}")
+            Text(text = "Umbral configurado: ${configuredThreshold.formatAsChileanPesos()}")
         }
     }
 }

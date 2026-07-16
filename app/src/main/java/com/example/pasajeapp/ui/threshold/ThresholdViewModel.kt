@@ -1,5 +1,6 @@
 package com.example.pasajeapp.ui.threshold
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -12,10 +13,18 @@ import kotlinx.coroutines.launch
 
 data class ThresholdUiState(
     val amountInput: String = "",
+    val remainingBalanceInput: String = "",
+    val remainingBalance: Long? = null,
     val savedThreshold: Long? = null,
     val errorMessage: String? = null,
+    val purchaseErrorMessage: String? = null,
     val confirmationMessage: String? = null
-)
+) {
+    val shouldShowLowBalanceAlert: Boolean
+        get() = remainingBalance != null &&
+            savedThreshold != null &&
+            isLowBalance(remainingBalance, savedThreshold)
+}
 
 class ThresholdViewModel(
     private val thresholdPreferences: ThresholdPreferences
@@ -26,6 +35,7 @@ class ThresholdViewModel(
     init {
         viewModelScope.launch {
             thresholdPreferences.savedThreshold.collect { savedThreshold ->
+                Log.d("ThresholdViewModel", "Umbral recuperado: $savedThreshold")
                 _uiState.update {
                     it.copy(savedThreshold = savedThreshold)
                 }
@@ -38,6 +48,40 @@ class ThresholdViewModel(
             it.copy(
                 amountInput = value,
                 errorMessage = null
+            )
+        }
+    }
+
+    fun onRemainingBalanceInputChanged(value: String) {
+        _uiState.update {
+            it.copy(
+                remainingBalanceInput = value,
+                purchaseErrorMessage = null
+            )
+        }
+    }
+
+    fun registerPurchaseResult() {
+        val currentInput = uiState.value.remainingBalanceInput.trim()
+        val remainingBalance = currentInput.toLongOrNull()
+
+        if (remainingBalance == null || remainingBalance < 0L) {
+            _uiState.update {
+                it.copy(purchaseErrorMessage = "Ingrese un saldo restante válido")
+            }
+            return
+        }
+
+        onPurchaseCompleted(remainingBalance)
+    }
+
+    fun onPurchaseCompleted(remainingBalance: Long) {
+        require(remainingBalance >= 0L) { "Remaining balance cannot be negative" }
+        _uiState.update {
+            it.copy(
+                remainingBalanceInput = remainingBalance.toString(),
+                remainingBalance = remainingBalance,
+                purchaseErrorMessage = null
             )
         }
     }
