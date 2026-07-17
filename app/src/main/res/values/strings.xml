@@ -6,11 +6,8 @@
     <string name="financial_product_name">Tarjeta Pasaje</string>
     <string name="available_balance">Saldo disponible</string>
     <string name="balance_not_entered">$ —</string>
-    <string name="threshold_loading">Cargando protección</string>
-    <string name="threshold_active">Protección activa</string>
-    <string name="threshold_inactive">Sin umbral</string>
-    <string name="balance_card_hint">Ingresa tu saldo para comenzar una simulación segura.</string>
-    <string name="balance_card_ready">Saldo listo para simular una compra.</string>
+    <string name="balance_card_hint">Consultando el saldo almacenado de forma segura.</string>
+    <string name="balance_card_ready">Saldo sincronizado y listo para realizar una compra.</string>
 
     <string name="threshold_section_title">Alerta de saldo mínimo</string>
     <string name="threshold_section_description">Recibirás una alerta cuando tu saldo quede por debajo del monto configurado.</string>
@@ -20,8 +17,7 @@
     <string name="save_threshold">Guardar umbral</string>
 
     <string name="purchase_section_title">Simula una compra</string>
-    <string name="purchase_section_description">Ingresa el saldo disponible y el monto de la compra para conocer tu saldo restante.</string>
-    <string name="balance_before_purchase">Saldo antes de la compra</string>
+    <string name="purchase_section_description">Ingresa el monto de la compra. El servidor validará la tarjeta y actualizará el saldo.</string>
     <string name="purchase_amount">Monto de la compra</string>
     <string name="make_purchase">Realizar compra</string>
 
@@ -44,4 +40,23 @@
     <string name="welcome_benefit_warning">Recibe avisos preventivos</string>
     <string name="welcome_start">Comenzar</string>
     <string name="welcome_secondary_text">Una forma simple de cuidar tus finanzas.</string>
+    <string name="card_status_active">Activa</string>
+    <string name="card_status_blocked">Bloqueada</string>
+    <string name="card_status_loading">Consultando tarjeta</string>
+    <string name="card_status_unavailable">Estado no disponible</string>
+    <string name="card_last_four">Terminada en %1$s</string>
+    <string name="card_security_title">Seguridad de la tarjeta</string>
+    <string name="card_security_description">Bloquéala temporalmente si no la encuentras. El estado se guardará de forma segura.</string>
+    <string name="block_temporarily">Bloquear temporalmente</string>
+    <string name="blocking_card">Bloqueando tarjeta…</string>
+    <string name="card_already_blocked">La tarjeta está protegida y no puede utilizarse para compras.</string>
+    <string name="block_confirmation_title">¿Bloquear temporalmente?</string>
+    <string name="block_confirmation_message">Las compras serán rechazadas hasta que la tarjeta vuelva a estar activa.</string>
+    <string name="cancel">Cancelar</string>
+    <string name="confirm_block">Confirmar bloqueo</string>
+    <string name="lock_icon_description">Tarjeta bloqueada</string>
+    <string name="purchase_rejected_title">Compra rechazada</string>
+    <string name="purchase_blocked_message">Tu tarjeta está bloqueada temporalmente. La compra fue rechazada y no se realizaron cambios en tu saldo.</string>
+    <string name="purchase_processing">Procesando compra…</string>
+    <string name="retry">Reintentar</string>
 </resources>

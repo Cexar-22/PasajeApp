@@ -13,14 +13,19 @@ private val Context.thresholdDataStore: DataStore<Preferences> by preferencesDat
     name = "threshold_preferences"
 )
 
-class ThresholdPreferences(context: Context) {
+interface ThresholdStore {
+    val savedThreshold: Flow<Long?>
+    suspend fun saveThreshold(threshold: Long)
+}
+
+class ThresholdPreferences(context: Context) : ThresholdStore {
     private val dataStore = context.applicationContext.thresholdDataStore
 
-    val savedThreshold: Flow<Long?> = dataStore.data.map { preferences ->
+    override val savedThreshold: Flow<Long?> = dataStore.data.map { preferences ->
         preferences[THRESHOLD_KEY]
     }
 
-    suspend fun saveThreshold(threshold: Long) {
+    override suspend fun saveThreshold(threshold: Long) {
         dataStore.edit { preferences ->
             preferences[THRESHOLD_KEY] = threshold
         }
