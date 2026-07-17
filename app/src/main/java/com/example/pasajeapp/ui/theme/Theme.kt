@@ -1,6 +1,5 @@
 package com.example.pasajeapp.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -12,32 +11,63 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
+    primary = Teal300,
+    onPrimary = Navy900,
+    primaryContainer = Navy800,
+    onPrimaryContainer = Navy100,
+    secondary = Teal300,
+    onSecondary = Navy900,
+    secondaryContainer = DarkTealContainer,
+    onSecondaryContainer = Teal100,
+    tertiary = Amber300,
+    onTertiary = Neutral950,
+    tertiaryContainer = DarkAmberContainer,
+    onTertiaryContainer = Amber100,
+    background = Neutral950,
+    onBackground = Neutral100,
+    surface = Neutral900,
+    onSurface = Neutral100,
+    surfaceVariant = Neutral800,
+    onSurfaceVariant = Neutral300,
+    outline = Neutral500,
+    outlineVariant = Neutral700,
+    error = ErrorDark,
+    onError = ErrorContainerDark,
+    errorContainer = ErrorContainerDark,
+    onErrorContainer = ErrorContainerLight
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    primary = Navy900,
+    onPrimary = White,
+    primaryContainer = Navy100,
+    onPrimaryContainer = Navy900,
+    secondary = Teal700,
+    onSecondary = White,
+    secondaryContainer = Teal100,
+    onSecondaryContainer = Navy900,
+    tertiary = Amber700,
+    onTertiary = White,
+    tertiaryContainer = Amber100,
+    onTertiaryContainer = Amber700,
+    background = Neutral50,
+    onBackground = Navy900,
+    surface = White,
+    onSurface = Navy900,
+    surfaceVariant = Neutral100,
+    onSurfaceVariant = Neutral600,
+    outline = Neutral500,
+    outlineVariant = Neutral200,
+    error = ErrorLight,
+    onError = White,
+    errorContainer = ErrorContainerLight,
+    onErrorContainer = ErrorLight
 )
 
 @Composable
 fun PasajeAppTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {
@@ -53,6 +83,7 @@ fun PasajeAppTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = PasajeShapes,
         content = content
     )
 }
