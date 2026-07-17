@@ -1,3 +1,47 @@
 <resources>
-    <string name="app_name">PasajeApp</string>
+    <string name="app_name">Pasaje</string>
+    <string name="home_eyebrow">TU TARJETA DIGITAL</string>
+    <string name="home_title">Tu dinero, bajo control</string>
+    <string name="home_subtitle">Administra tu saldo y recibe alertas antes de quedarte sin fondos.</string>
+    <string name="financial_product_name">Tarjeta Pasaje</string>
+    <string name="available_balance">Saldo disponible</string>
+    <string name="balance_not_entered">$ —</string>
+    <string name="threshold_loading">Cargando protección</string>
+    <string name="threshold_active">Protección activa</string>
+    <string name="threshold_inactive">Sin umbral</string>
+    <string name="balance_card_hint">Ingresa tu saldo para comenzar una simulación segura.</string>
+    <string name="balance_card_ready">Saldo listo para simular una compra.</string>
+
+    <string name="threshold_section_title">Alerta de saldo mínimo</string>
+    <string name="threshold_section_description">Recibirás una alerta cuando tu saldo quede por debajo del monto configurado.</string>
+    <string name="current_threshold">Umbral actual</string>
+    <string name="threshold_not_configured">No configurado</string>
+    <string name="minimum_threshold">Umbral mínimo</string>
+    <string name="save_threshold">Guardar umbral</string>
+
+    <string name="purchase_section_title">Simula una compra</string>
+    <string name="purchase_section_description">Ingresa el saldo disponible y el monto de la compra para conocer tu saldo restante.</string>
+    <string name="balance_before_purchase">Saldo antes de la compra</string>
+    <string name="purchase_amount">Monto de la compra</string>
+    <string name="make_purchase">Realizar compra</string>
+
+    <string name="low_balance_title">Saldo bajo</string>
+    <string name="low_balance_message">Tu saldo restante es de %1$s y está por debajo del umbral configurado de %2$s.</string>
+    <string name="remaining_balance_label">Saldo restante</string>
+    <string name="configured_threshold_label">Umbral configurado</string>
+    <string name="understood">Entendido</string>
+    <string name="warning_icon_description">Advertencia de saldo bajo</string>
+
+    <string name="welcome_logo_description">Icono de billetera de Pasaje</string>
+    <string name="welcome_brand_tagline">GESTIÓN FINANCIERA SIMPLE</string>
+    <string name="welcome_title">Tu dinero, siempre bajo control</string>
+    <string name="welcome_description">Administra tu saldo, configura alertas y mantén el control de tus movimientos desde un solo lugar.</string>
+    <string name="welcome_visual_status">Control inteligente</string>
+    <string name="welcome_visual_title">Saldo y alertas en un solo lugar</string>
+    <string name="welcome_visual_description">Anticípate y toma mejores decisiones sobre tu saldo.</string>
+    <string name="welcome_benefit_balance">Controla tu saldo disponible</string>
+    <string name="welcome_benefit_threshold">Configura alertas personalizadas</string>
+    <string name="welcome_benefit_warning">Recibe avisos preventivos</string>
+    <string name="welcome_start">Comenzar</string>
+    <string name="welcome_secondary_text">Una forma simple de cuidar tus finanzas.</string>
 </resources>
