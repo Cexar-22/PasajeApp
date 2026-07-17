@@ -22,6 +22,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -46,6 +47,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import com.example.pasajeapp.R
+import com.example.pasajeapp.data.CardStatus
 import com.example.pasajeapp.ui.components.FinancialSectionCard
 import com.example.pasajeapp.ui.components.FinancialSectionHeader
 import com.example.pasajeapp.ui.components.MoneyInputField
@@ -85,9 +87,10 @@ fun ThresholdSettingsScreen(
             uiState = uiState,
             onAmountChanged = viewModel::onAmountChanged,
             onSaveClick = viewModel::saveThreshold,
-            onAvailableBalanceChanged = viewModel::onAvailableBalanceChanged,
             onPurchaseAmountChanged = viewModel::onPurchaseAmountChanged,
             onRegisterPurchaseClick = viewModel::registerPurchase,
+            onRequestBlock = viewModel::requestTemporaryBlock,
+            onRetryCard = viewModel::loadCard,
             contentPadding = innerPadding
         )
     }
@@ -97,6 +100,17 @@ fun ThresholdSettingsScreen(
             alert = alert,
             onDismiss = viewModel::dismissLowBalanceAlert
         )
+    }
+
+    if (uiState.blockConfirmation == BlockConfirmationState.VISIBLE) {
+        BlockConfirmationDialog(
+            onConfirm = viewModel::confirmTemporaryBlock,
+            onCancel = viewModel::cancelTemporaryBlock
+        )
+    }
+
+    if (uiState.purchaseState is PurchaseUiState.RejectedCardBlocked) {
+        BlockedPurchaseDialog(onDismiss = viewModel::dismissBlockedPurchaseAlert)
     }
 }
 
@@ -131,9 +145,10 @@ private fun ThresholdSettingsContent(
     uiState: ThresholdUiState,
     onAmountChanged: (String) -> Unit,
     onSaveClick: () -> Unit,
-    onAvailableBalanceChanged: (String) -> Unit,
     onPurchaseAmountChanged: (String) -> Unit,
     onRegisterPurchaseClick: () -> Unit,
+    onRequestBlock: () -> Unit,
+    onRetryCard: () -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier
 ) {
@@ -157,10 +172,11 @@ private fun ThresholdSettingsContent(
             verticalArrangement = Arrangement.spacedBy(AppSpacing.large)
         ) {
             AppHeader()
-            FinancialSummaryCard(
-                availableBalance = uiState.availableBalance,
-                savedThreshold = uiState.savedThreshold,
-                isThresholdLoaded = uiState.isThresholdLoaded
+            FinancialSummaryCard(uiState = uiState)
+            CardProtectionSection(
+                uiState = uiState,
+                onRequestBlock = onRequestBlock,
+                onRetryCard = onRetryCard
             )
             ThresholdSection(
                 uiState = uiState,
@@ -169,7 +185,6 @@ private fun ThresholdSettingsContent(
             )
             PurchaseSection(
                 uiState = uiState,
-                onAvailableBalanceChanged = onAvailableBalanceChanged,
                 onPurchaseAmountChanged = onPurchaseAmountChanged,
                 onRegisterPurchaseClick = onRegisterPurchaseClick
             )
@@ -201,15 +216,14 @@ private fun AppHeader() {
 
 @Composable
 private fun FinancialSummaryCard(
-    availableBalance: Long?,
-    savedThreshold: Long?,
-    isThresholdLoaded: Boolean,
+    uiState: ThresholdUiState,
     modifier: Modifier = Modifier
 ) {
-    val statusText = when {
-        !isThresholdLoaded -> stringResource(R.string.threshold_loading)
-        savedThreshold != null -> stringResource(R.string.threshold_active)
-        else -> stringResource(R.string.threshold_inactive)
+    val card = uiState.card
+    val statusText = when (uiState.cardState) {
+        CardUiState.Loading -> stringResource(R.string.card_status_loading)
+        is CardUiState.Error -> stringResource(R.string.card_status_unavailable)
+        is CardUiState.Ready -> stringResource(cardStatusLabelRes(card!!.status))
     }
 
     Box(
@@ -244,16 +258,28 @@ private fun FinancialSummaryCard(
                         modifier = Modifier.size(AppDimensions.smallIcon),
                         tint = FinancialCardContent
                     )
-                    Text(
-                        text = stringResource(R.string.financial_product_name),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = FinancialCardContent,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    Column {
+                        Text(
+                            text = stringResource(R.string.financial_product_name),
+                            style = MaterialTheme.typography.titleMedium,
+                            color = FinancialCardContent,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        card?.let {
+                            Text(
+                                text = stringResource(R.string.card_last_four, it.lastFour),
+                                style = MaterialTheme.typography.labelMedium,
+                                color = FinancialCardContent.copy(alpha = 0.78f)
+                            )
+                        }
+                    }
                 }
                 Spacer(modifier = Modifier.width(AppSpacing.small))
-                FinancialStatusPill(text = statusText)
+                FinancialStatusPill(
+                    text = statusText,
+                    showLock = card?.status?.let(::shouldShowCardLock) == true
+                )
             }
 
             Column(verticalArrangement = Arrangement.spacedBy(AppSpacing.extraSmall)) {
@@ -263,7 +289,7 @@ private fun FinancialSummaryCard(
                     color = FinancialCardContent.copy(alpha = 0.78f)
                 )
                 Text(
-                    text = availableBalance?.formatAsChileanPesos()
+                    text = uiState.availableBalance?.formatAsChileanPesos()
                         ?: stringResource(R.string.balance_not_entered),
                     style = MaterialTheme.typography.displaySmall,
                     color = FinancialCardContent,
@@ -284,8 +310,10 @@ private fun FinancialSummaryCard(
                 )
                 Text(
                     text = stringResource(
-                        if (availableBalance == null) {
+                        if (card == null) {
                             R.string.balance_card_hint
+                        } else if (card.status == CardStatus.BLOCKED) {
+                            R.string.card_already_blocked
                         } else {
                             R.string.balance_card_ready
                         }
@@ -301,7 +329,8 @@ private fun FinancialSummaryCard(
 @Composable
 private fun FinancialStatusPill(
     text: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showLock: Boolean = false
 ) {
     Surface(
         modifier = modifier,
@@ -309,15 +338,92 @@ private fun FinancialStatusPill(
         color = FinancialCardContent.copy(alpha = 0.14f),
         contentColor = FinancialCardContent
     ) {
-        Text(
-            text = text,
+        Row(
             modifier = Modifier.padding(
                 horizontal = AppSpacing.medium,
                 vertical = AppSpacing.small
             ),
-            style = MaterialTheme.typography.labelMedium,
-            maxLines = 1
-        )
+            horizontalArrangement = Arrangement.spacedBy(AppSpacing.extraSmall),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (showLock) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_lock_24),
+                    contentDescription = stringResource(R.string.lock_icon_description),
+                    modifier = Modifier.size(AppDimensions.smallIcon)
+                )
+            }
+            Text(text = text, style = MaterialTheme.typography.labelMedium, maxLines = 1)
+        }
+    }
+}
+
+@Composable
+private fun CardProtectionSection(
+    uiState: ThresholdUiState,
+    onRequestBlock: () -> Unit,
+    onRetryCard: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    FinancialSectionCard(modifier = modifier) {
+        Column(
+            modifier = Modifier.padding(AppSpacing.large),
+            verticalArrangement = Arrangement.spacedBy(AppSpacing.standard)
+        ) {
+            FinancialSectionHeader(
+                title = stringResource(R.string.card_security_title),
+                description = stringResource(R.string.card_security_description),
+                icon = painterResource(
+                    if (uiState.card?.status == CardStatus.BLOCKED) R.drawable.ic_lock_24
+                    else R.drawable.ic_shield_24
+                )
+            )
+            when (val cardState = uiState.cardState) {
+                CardUiState.Loading -> Row(
+                    horizontalArrangement = Arrangement.spacedBy(AppSpacing.medium),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.size(AppDimensions.smallIcon))
+                    Text(stringResource(R.string.card_status_loading))
+                }
+                is CardUiState.Error -> {
+                    Text(
+                        text = cardState.message,
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    PrimaryActionButton(
+                        text = stringResource(R.string.retry),
+                        onClick = onRetryCard,
+                        icon = painterResource(R.drawable.ic_shield_24)
+                    )
+                }
+                is CardUiState.Ready -> {
+                    if (cardState.card.status == CardStatus.BLOCKED) {
+                        Text(
+                            text = stringResource(R.string.card_already_blocked),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    val blocking = uiState.blockOperation is BlockOperationState.Blocking
+                    PrimaryActionButton(
+                        text = stringResource(
+                            if (blocking) R.string.blocking_card else R.string.block_temporarily
+                        ),
+                        onClick = onRequestBlock,
+                        enabled = cardState.card.status == CardStatus.ACTIVE && !blocking,
+                        icon = painterResource(R.drawable.ic_lock_24)
+                    )
+                    (uiState.blockOperation as? BlockOperationState.Error)?.let {
+                        Text(
+                            text = it.message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -393,7 +499,6 @@ private fun CurrentThresholdSummary(
 @Composable
 private fun PurchaseSection(
     uiState: ThresholdUiState,
-    onAvailableBalanceChanged: (String) -> Unit,
     onPurchaseAmountChanged: (String) -> Unit,
     onRegisterPurchaseClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -410,19 +515,19 @@ private fun PurchaseSection(
             )
             AvailableBalanceSummary(availableBalance = uiState.availableBalance)
             MoneyInputField(
-                value = uiState.availableBalanceInput,
-                onValueChange = onAvailableBalanceChanged,
-                label = stringResource(R.string.balance_before_purchase),
-                errorMessage = uiState.balanceErrorMessage
-            )
-            MoneyInputField(
                 value = uiState.purchaseAmountInput,
                 onValueChange = onPurchaseAmountChanged,
                 label = stringResource(R.string.purchase_amount),
                 errorMessage = uiState.purchaseErrorMessage
             )
             PrimaryActionButton(
-                text = stringResource(R.string.make_purchase),
+                text = stringResource(
+                    if (uiState.purchaseState is PurchaseUiState.Submitting) {
+                        R.string.purchase_processing
+                    } else {
+                        R.string.make_purchase
+                    }
+                ),
                 onClick = onRegisterPurchaseClick,
                 enabled = uiState.isThresholdLoaded && uiState.isPurchaseSubmissionEnabled,
                 icon = painterResource(R.drawable.ic_wallet_24)
@@ -536,6 +641,54 @@ private fun LowBalanceAlertDialog(
 }
 
 @Composable
+private fun BlockConfirmationDialog(
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        icon = {
+            Icon(
+                painter = painterResource(R.drawable.ic_lock_24),
+                contentDescription = stringResource(R.string.lock_icon_description)
+            )
+        },
+        title = { Text(stringResource(R.string.block_confirmation_title)) },
+        text = { Text(stringResource(R.string.block_confirmation_message)) },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text(stringResource(R.string.confirm_block))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onCancel) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
+@Composable
+private fun BlockedPurchaseDialog(onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        icon = {
+            Icon(
+                painter = painterResource(R.drawable.ic_lock_24),
+                contentDescription = stringResource(R.string.lock_icon_description)
+            )
+        },
+        title = { Text(stringResource(R.string.purchase_rejected_title)) },
+        text = { Text(stringResource(R.string.purchase_blocked_message)) },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.understood))
+            }
+        }
+    )
+}
+
+@Composable
 private fun WarningAmountRow(
     label: String,
     amount: String,
@@ -576,9 +729,10 @@ private fun ThresholdSettingsContentPreview() {
             uiState = ThresholdUiState(isThresholdLoaded = true),
             onAmountChanged = {},
             onSaveClick = {},
-            onAvailableBalanceChanged = {},
             onPurchaseAmountChanged = {},
             onRegisterPurchaseClick = {},
+            onRequestBlock = {},
+            onRetryCard = {},
             contentPadding = PaddingValues()
         )
     }
@@ -589,9 +743,7 @@ private fun ThresholdSettingsContentPreview() {
 private fun FinancialSummaryCardPreview() {
     PasajeAppTheme {
         FinancialSummaryCard(
-            availableBalance = null,
-            savedThreshold = null,
-            isThresholdLoaded = true,
+            uiState = ThresholdUiState(isThresholdLoaded = true),
             modifier = Modifier.padding(AppSpacing.standard)
         )
     }
@@ -616,7 +768,6 @@ private fun PurchaseSectionPreview() {
     PasajeAppTheme {
         PurchaseSection(
             uiState = ThresholdUiState(isThresholdLoaded = true),
-            onAvailableBalanceChanged = {},
             onPurchaseAmountChanged = {},
             onRegisterPurchaseClick = {},
             modifier = Modifier.padding(AppSpacing.standard)
